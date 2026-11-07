@@ -1,17 +1,51 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shape morphisms</title>
-    
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Interactive shape morphing.">
+<script>
+    try {
+        const saved = localStorage.getItem('shapes-theme');
+        document.documentElement.dataset.theme = saved === 'dark' || saved === 'light'
+            ? saved : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    } catch { document.documentElement.dataset.theme = 'light'; }
+</script>
+<title>Shapes</title>
 
-    
-  <script type="module" crossorigin src="./assets/index-5df1b9ea.js"></script>
-  <link rel="stylesheet" href="./assets/index-4e81850c.css">
+  <script type="module" crossorigin src="./assets/index-a3136e07.js"></script>
+  <link rel="stylesheet" href="./assets/index-7266ca74.css">
 </head>
 <body>
-    <canvas class="webgl"></canvas>
+<canvas class="webgl" aria-label="Interactive morphing shape"></canvas>
+<button id="theme" class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false">
+<svg class="moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20.8 13A9 9 0 0 1 11 3.2 9 9 0 1 0 20.8 13Z"/></svg>
+<svg class="sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+</button>
+<details class="panel" open>
+<summary><span class="wordmark">shapes<span class="dot">.</span></span> <span class="indicator" aria-hidden="true">+</span></summary>
+<div class="controls">
+<label>From <select id="from"></select></label>
+<label>To <select id="to"></select></label>
+<div class="timeline">
+<label for="progress">Transition <output id="amount">0%</output></label>
+<input id="progress" type="range" min="0" max="1" step="0.001" value="0">
+<div class="row"><button id="play" type="button">Pause</button><label class="check"><input id="loop" type="checkbox" checked> Loop</label></div>
+</div>
+<details class="settings">
+<summary>Settings <span class="indicator" aria-hidden="true">+</span></summary>
+<div class="slider-control">
+<label for="speed">Speed <output id="speedAmount" for="speed">1×</output></label>
+<input id="speed" type="range" min="0.1" max="3" step="0.05" value="1">
+</div>
+<div class="slider-control">
+<label for="motion">Motion <output id="motionAmount" for="motion">Spring</output></label>
+<input id="motion" type="range" min="0" max="2" step="0.01" value="2" aria-valuetext="Spring">
+<div class="range-labels" aria-hidden="true"><span>Linear</span><span>Smooth</span><span>Spring</span></div>
+</div>
+<div class="row"><label class="check"><input id="wireframe" type="checkbox" checked> Wireframe</label><label>Color <input id="color" type="color" value="#ff0000"></label></div>
+<button class="text-button" id="reset" type="button">Reset <span aria-hidden="true">↺</span></button>
+</details>
+</div>
+</details>
 </body>
 </html>
