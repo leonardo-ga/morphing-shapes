@@ -1,74 +1,52 @@
 import * as THREE from 'three';
 import Base from '../Base';
-import CubeSphereGeometry from './shape-morphisms/CubeSphereGeometry';
+import MorphismGeometry, { presets } from './shape-morphisms/MorphismGeometry';
 
 export default class CubeSphereMesh {
-
     constructor() {
         this.base = new Base();
-        this.scene = this.base.scene;
-        this.debug = this.base.debug;
-        this.time = this.base.time;
-
-        this.t = 0;
-        this.dir = 1;
-
-        this.loadGeometry();
-        this.loadMesh();
-    }
-
-    loadGeometry() {
-        const radius = 1;
-        const segments = 5;
-
-        // morph function: t goes from 0 to 1
-        // v(t) controls easing curve
-        function morphFunc(t) {
-            //return (1 - Math.cos(t*Math.PI))/2;
-            //return 1 / (1 + Math.exp(- 10 * (t - 0.5)));
-            const damp = 10;
-            const freq = 17;
-            const anticipation = 0.15;
-            const slow = 2.5;
-            const ts = Math.pow(t, slow);
-            const spring = 1 + Math.exp(- damp * ts) * Math.sin((ts - anticipation) * freq);
-            const f0 = 1 + Math.exp(0) * Math.sin(- anticipation * freq);
-            const f1 = 1 + Math.exp(-damp) * Math.sin((1 - anticipation) * freq);
-
-            return (spring - f0) / (f1 - f0);
+        this.t = 0; this.dir = 1; this.playing = true;
+        this.geom = new MorphismGeometry();
+        this.mesh = new THREE.Mesh(this.geom, new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: true }));
+        this.mesh.scale.setScalar(2);
+        this.base.scene.add(this.mesh);
+        this.ui = Object.fromEntries([...document.querySelectorAll('[id]')].map(el => [el.id, el]));
+        for (const key of ['from', 'to']) {
+            presets.forEach((name, i) => this.ui[key].add(new Option(name, i)));
+            this.ui[key].addEventListener('change', () => { this.t = 0; this.dir = 1; this.render(); });
         }
-
-        this.geom = new CubeSphereGeometry(radius, segments, morphFunc);
-
-        this.geom.computeVertexNormals();
+        this.ui.to.value = '1';
+        this.ui.play.onclick = () => { this.playing = !this.playing; if (this.playing && this.t === 1) { this.t = 0; this.dir = 1; } this.render(); };
+        this.ui.progress.oninput = () => { this.playing = false; this.t = Number(this.ui.progress.value); this.dir = 1; this.render(); };
+        this.ui.motion.oninput = () => this.render();
+        this.ui.speed.oninput = () => this.render();
+        this.ui.wireframe.onchange = () => { this.mesh.material.wireframe = this.ui.wireframe.checked; };
+        this.ui.color.oninput = () => this.mesh.material.color.set(this.ui.color.value);
+        this.ui.reset.onclick = () => {
+            this.ui.from.value = '0'; this.ui.to.value = '1'; this.ui.motion.value = '2'; this.ui.speed.value = '1';
+            this.ui.loop.checked = true; this.ui.wireframe.checked = true; this.ui.color.value = '#ff0000';
+            this.mesh.material.color.set('#ff0000'); this.mesh.material.wireframe = true;
+            this.t = 0; this.dir = 1; this.playing = true; this.render();
+        };
+        this.render();
     }
-
-    loadMesh() {
-        const material = new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: true });
-        /*const materials = [
-            new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: false }),
-            new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: false }),
-            new THREE.MeshStandardMaterial({ color: 0x00ff00, wireframe: false }),
-            new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: false }),
-            new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: false }),
-            new THREE.MeshStandardMaterial({ color: 0xff0000, wireframe: false })
-        ];*/
-        this.mesh = new THREE.Mesh(this.geom, material);
-        this.mesh.position.set(0, 0, 0);
-        this.mesh.receiveShadow = true;
-        this.mesh.scale.set(2, 2, 2);
-        this.scene.add(this.mesh);
+    render() {
+        const motion = Number(this.ui.motion.value);
+        this.geom.morph(this.t, Number(this.ui.from.value), Number(this.ui.to.value), motion);
+        this.ui.speedAmount.value = `${Number(this.ui.speed.value).toFixed(2).replace(/\.?0+$/, '')}×`;
+        const motionText = motion === 0 ? 'Linear' : motion === 1 ? 'Smooth' : motion === 2 ? 'Spring'
+            : motion < 1 ? `${Math.round(motion * 100)}% smooth` : `${Math.round((motion - 1) * 100)}% spring`;
+        this.ui.motionAmount.value = motionText;
+        this.ui.motion.setAttribute('aria-valuetext', motionText);
+        this.ui.progress.value = this.t;
+        this.ui.amount.value = `${Math.round(this.t * 100)}%`;
+        this.ui.play.textContent = this.playing ? 'Pause' : 'Play';
     }
-
-
     update() {
-        // oscillate t from 0 → 1 → 0
-        this.t += this.dir * this.time.delta * 0.5;
-        if (this.t >= 1) { this.t = 1; this.dir = -1; }
-        if (this.t <= 0) { this.t = 0; this.dir = 1; }
-
-        this.geom.morph(this.t);  // update vertex positions
-        this.geom.computeVertexNormals();
-        this.geom.attributes.normal.needsUpdate = true;
+        if (!this.playing) return;
+        this.t += this.dir * this.base.time.delta * .5 * Number(this.ui.speed.value);
+        if (this.t >= 1) { this.t = 1; if (this.ui.loop.checked) this.dir = -1; else this.playing = false; }
+        if (this.t <= 0) { this.t = 0; this.dir = 1; if (!this.ui.loop.checked) this.playing = false; }
+        this.render();
     }
 }
